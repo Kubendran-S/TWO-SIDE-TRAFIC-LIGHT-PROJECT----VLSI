@@ -1,0 +1,194 @@
+//////////////// CODE //////////////////
+
+
+FILE 1,2,3 IS all for design source code
+
+
+//////////// FILE 1 ////////////////////
+
+module main_top(
+    input reset,
+    input Clk,
+    input C,
+    output MR,
+    output MY,
+    output MG,
+    output SR,
+    output SY,
+    output SG
+);
+
+wire TS, TL, ST;
+
+// Correct connections
+timer part1(
+    .ST(ST),
+    .Clk(Clk),
+    .TS(TS),
+    .TL(TL)
+);
+
+fsm part2(
+    .TS(TS),
+    .TL(TL),
+    .Clk(Clk),
+    .C(C),
+    .reset(reset),
+    .MR(MR),
+    .MY(MY),
+    .MG(MG),
+    .SR(SR),
+    .SY(SY),
+    .SG(SG),
+    .ST(ST)
+);
+
+endmodule
+
+
+
+///////////////// FILE 2 ///////////////////////
+
+
+
+
+
+
+module timer(
+    input ST,
+    input Clk,
+    output TS,
+    output TL
+);
+
+reg [4:0] value = 0;  
+
+assign TS = (value >= 5);
+assign TL = (value >= 15);
+
+always @(posedge Clk or posedge ST) begin
+    if (ST)
+        value <= 0;
+    else
+        value <= value + 1;
+end
+
+endmodule
+
+
+
+
+
+////////////////// FILE 3 ///////////////////////
+
+
+
+
+
+module fsm(
+    input TS,
+    input TL,
+    input Clk,
+    input C,
+    input reset,
+    output MR,
+    output MY,
+    output MG,
+    output SR,
+    output SY,
+    output SG,
+    output reg ST
+);
+
+reg [5:0] state;
+
+parameter mainroadgreen  = 6'b001100;
+parameter mainroadyellow = 6'b010100;
+parameter sideroadgreen  = 6'b100001;
+parameter sideroadyellow = 6'b100010;
+
+assign MR = state[5];
+assign MY = state[4];
+assign MG = state[3];
+assign SR = state[2];
+assign SY = state[1];
+assign SG = state[0];
+
+always @(posedge Clk or posedge reset) begin
+    if (reset) begin
+        state <= mainroadgreen;
+        ST <= 1;
+    end else begin
+        ST <= 0;
+
+        case(state)
+            mainroadgreen:
+                if (TL & C) begin
+                    state <= mainroadyellow;
+                    ST <= 1;
+                end
+
+            mainroadyellow:
+                if (TS) begin
+                    state <= sideroadgreen;
+                    ST <= 1;
+                end
+
+            sideroadgreen:
+                if (TL | !C) begin
+                    state <= sideroadyellow;
+                    ST <= 1;
+                end
+
+            sideroadyellow:
+                if (TS) begin
+                    state <= mainroadgreen;
+                    ST <= 1;
+                end
+        endcase
+    end
+end
+
+endmodule
+
+
+
+
+///////////////////// TEST BENCH //////////////////////
+
+
+
+
+module tb;
+
+reg clk, reset, C;
+wire MR, MY, MG, SR, SY, SG;
+
+main_top uut (
+    .Clk(clk),
+    .reset(reset),
+    .C(C),
+    .MR(MR), .MY(MY), .MG(MG),
+    .SR(SR), .SY(SY), .SG(SG)
+);
+
+always #5 clk = ~clk;
+
+initial begin
+    clk = 0;
+    reset = 1;
+    C = 1;   // vehicle present
+
+    #10 reset = 0;
+
+    #200 $finish;
+end
+
+endmodule
+
+
+
+
+
+
+///////////////// THE  END /////////////////////
